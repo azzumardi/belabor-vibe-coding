@@ -49,3 +49,31 @@ export const loginUser = async (user: any) => {
   // 5. Kembalikan token
   return token;
 };
+
+export const getCurrentUser = async (authHeader: string | undefined) => {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    throw new Error("Unauthorized");
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  // 1. Cari session berdasarkan token
+  const session = await db.select().from(sessions).where(eq(sessions.token, token)).limit(1);
+  if (session.length === 0) {
+    throw new Error("Unauthorized");
+  }
+
+  // 2. Cari user berdasarkan userId dari session
+  const user = await db.select({
+    id: users.id,
+    name: users.name,
+    email: users.email,
+    createdAt: users.createdAt
+  }).from(users).where(eq(users.id, session[0].userId)).limit(1);
+
+  if (user.length === 0) {
+    throw new Error("Unauthorized");
+  }
+
+  return user[0];
+};
