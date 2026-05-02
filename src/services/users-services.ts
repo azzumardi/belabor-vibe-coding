@@ -77,3 +77,20 @@ export const getCurrentUser = async (authHeader: string | undefined) => {
 
   return user[0];
 };
+
+export const logoutUser = async (authHeader: string | undefined) => {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    throw new Error("Unauthorized");
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  // 1. Cari session berdasarkan token
+  const session = await db.select().from(sessions).where(eq(sessions.token, token)).limit(1);
+  if (session.length === 0) {
+    throw new Error("Unauthorized");
+  }
+
+  // 2. Hapus session dari database
+  await db.delete(sessions).where(eq(sessions.token, token));
+};
