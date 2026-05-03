@@ -14,9 +14,9 @@ export const usersRoutes = new Elysia({ prefix: "/api" }).post(
   },
   {
     body: t.Object({
-      Name: t.String(),
-      Email: t.String(),
-      Password: t.String(),
+      Name: t.String({ minLength: 3, maxLength: 255 }),
+      Email: t.String({ format: "email", minLength: 3, maxLength: 255 }),
+      Password: t.String({ minLength: 6, maxLength: 255 }),
     }),
   }
 ).post(
