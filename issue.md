@@ -1,47 +1,45 @@
-# Bug: Nama User Terpotong (Truncated) Saat Registrasi Jika Terlalu Panjang
+# Pembuatan Unit Test untuk Seluruh Endpoint API
 
-## Deskripsi Bug
-Telah ditemukan sebuah *bug* pada fungsionalitas pendaftaran (*register*) pengguna baru. Ketika ada *request* masuk untuk mendaftar dengan nama yang panjangnya melebihi 255 karakter, API kita tetap menganggapnya valid dan membalas dengan status sukses (`{"Data": "Ok"}`).
+## Deskripsi Tugas
+Tugas ini bertujuan untuk memastikan kualitas dan konsistensi seluruh fungsionalitas API yang telah dibangun dengan membuat *Unit Tests* secara komprehensif. Kamu diminta untuk menyusun pengujian menggunakan alat bawaan (*test runner*) dari Bun, yaitu `bun test`.
 
-Namun di balik layar, nama tersebut terpotong otomatis menjadi tepat 255 karakter saat disisipkan ke database MySQL. Hal ini disebabkan karena skema database (Drizzle ORM) telah membatasi kolom `name` maksimal sebesar 255 karakter (`varchar(255)`). Di sisi lain, *route* Elysia JS kita belum memiliki validasi batas panjang karakter, sehingga data dibiarkan masuk ke dalam *service* dan langsung dipaksa masuk ke database.
+## Aturan Struktur & Teknologi
+- **Lokasi Direktori:** Simpan semua file spesifikasi pengujian di dalam folder `tests/` di *root* proyek (Contoh penamaan: `tests/users.test.ts`).
+- **Test Runner:** Gunakan fungsionalitas dari module `bun:test` (`describe`, `it`, `expect`, `beforeAll`, `beforeEach`, dll).
+- **Simulasi API:** Karena kita menggunakan Elysia JS, kamu dapat melakukan simulasi request HTTP secara langsung memanggil instance server (tanpa perlu membuka port/jaringan) menggunakan fitur `app.handle(new Request(...))`.
 
-## Target Perbaikan
-Kita harus memutus rantai *bug* ini di pintu gerbang utama (level Routing/API). API harus secara proaktif menolak dan mengembalikan HTTP *error validation* jika panjang karakter pada atribut `Name` melampaui batas yang diizinkan, sebelum membebani fungsi *service*.
-
-## Lokasi File yang Perlu Diubah
-- **Routes:** `src/routes/users-routes.ts`
+## Aturan Setup Database (Wajib!)
+Agar setiap *test case* berjalan secara terisolasi dan konsisten, data di dalam database harus direset.
+Kamu diwajibkan untuk membuat instruksi pembersihan data (*cleanup*) di dalam blok *setup* (`beforeAll` / `beforeEach` / `afterEach`) yang bertugas **menghapus semua data dari tabel `sessions` dan `users`**.
+*(Tips: Selalu hapus tabel `sessions` terlebih dahulu sebelum menghapus tabel `users` untuk menghindari error batasan Foreign Key).*
 
 ---
 
-## Tahapan Perbaikan (Langkah demi Langkah)
+## Daftar Skenario Pengujian (Test Scenarios)
 
-Untuk mengatasi *bug* ini, kamu hanya perlu mengikuti instruksi sederhana berikut:
+Implementasikan skenario *unit test* untuk setiap API berikut sedetail mungkin tanpa harus terpaku pada struktur kode tertentu. Silakan buat detail *assertions*-nya sendiri sesuai dengan kontrak respon API dan *logic* di bawah ini:
 
-### 1. Update Skema Validasi di Elysia Route
-- Buka file `users-routes.ts` di dalam direktori `src/routes/`.
-- Temukan bagian di mana *endpoint* registrasi `POST /api/users` didefinisikan.
-- Perhatikan argumen ketiga pada definisi route tersebut, yaitu bagian di mana *schema validation* untuk `body` menggunakan kelas TypeBox (`t.Object`).
-- Saat ini pendefinisian field tersebut tidak memiliki batas:
-  ```typescript
-  body: t.Object({
-    Name: t.String(),
-    Email: t.String(),
-    Password: t.String(),
-  })
-  ```
-- Tambahkan properti validasi batas maksimum karakter dengan menggunakan parameter konfigurasi `{ maxLength: 255 }` pada atribut Name. Untuk pencegahan jangka panjang, berikan juga konfigurasi yang sama pada `Email` dan `Password`. Modifikasi kodenya menjadi seperti berikut:
-  ```typescript
-  body: t.Object({
-    Name: t.String({ minLength: 3, maxLength: 255 }),
-    Email: t.String({ format: "email", minLength: 3, maxLength: 255 }),
-    Password: t.String({ minLength: 6, maxLength: 255 }),
-  })
-  ```
-*(Catatan: Dengan menambahkan `maxLength`, jika ada payload yang melebihi batas, Elysia JS akan secara otomatis mencegah eksekusi fungsi handler dan melempar respons HTTP status 422 Unprocessable Entity berisikan detail error).*
+### 1. Registrasi User (`POST /api/users`)
+- Skenario: Harus mengembalikan respons sukses apabila payload pendaftaran (Name, Email, Password) valid dan lengkap.
+- Skenario: Harus mengembalikan error apabila email yang digunakan sudah terdaftar (duplikat).
+- Skenario: Harus mengembalikan error validasi (422) apabila atribut Name melebihi batas maksimal (255) atau terlalu pendek (< 3).
+- Skenario: Harus mengembalikan error validasi apabila format Email salah.
+- Skenario: Harus mengembalikan error validasi apabila panjang Password tidak memenuhi syarat minimal (misal < 6 karakter).
 
-### 2. Uji Coba (Testing)
-Setelah diubah, jalankan server (`bun run dev`) dan lakukan uji coba validasi ini:
-1. **Skenario Nama Terlalu Panjang:** Kirim HTTP request `POST` ke `/api/users` dengan menyisipkan nilai "Name" sepanjang 300 karakter (bisa dengan menyalin huruf "A" berulang-ulang).
-   - Ekspektasi: API menolak *request* dan membalas dengan status validasi error (Biasanya berstatus HTTP 400 atau 422 bawaan Elysia). Jangan sampai sistem membalas `{"Data": "Ok"}`.
-2. **Skenario Nama Normal:** Kirim HTTP request `POST` ke `/api/users` dengan data wajar (panjang < 255 karakter).
-   - Ekspektasi: Registrasi sukses, mengembalikan balasan `{"Data": "Ok"}` dan utuh masuk ke database tanpa terpotong.
+### 2. Login User (`POST /api/users/login`)
+- Skenario: Harus berhasil mengembalikan Token UUID apabila kombinasi Email dan Password terdaftar dan cocok.
+- Skenario: Harus dipastikan bahwa token login beserta `user_id` yang sah berhasil disisipkan (*insert*) ke dalam tabel `sessions` di database.
+- Skenario: Harus mengembalikan error `Unauthorized` / salah kredensial jika email tidak ada di database.
+- Skenario: Harus mengembalikan error `Unauthorized` / salah kredensial jika password yang diinputkan keliru.
+
+### 3. Get Current User (`GET /api/users/current`)
+- Skenario: Harus mengembalikan data profil pengguna yang sah (seperti id, name, email, createdAt — **kecuali password**) ketika request dikirim bersama header `Authorization: Bearer <token_yang_valid>`.
+- Skenario: Harus menolak request (mengembalikan `Unauthorized`) jika header Authorization tidak disisipkan sama sekali.
+- Skenario: Harus menolak request jika token yang disisipkan fiktif, tidak ditemukan di tabel `sessions`, atau format header tidak valid.
+
+### 4. Logout User (`DELETE /api/users/logout`)
+- Skenario: Harus mengembalikan respons sukses (`"Data": "Ok"`) dan memproses *logout* jika header otorisasi memuat token yang aktif.
+- Skenario: Harus memverifikasi bahwa baris data di tabel `sessions` yang mengandung token terkait benar-benar **terhapus** dari database setelah proses logout berhasil.
+- Skenario: Harus mengembalikan pesan error `Unauthorized` apabila *endpoint* logout diakses tanpa token atau menggunakan token yang salah/usang.
+
+> **Catatan Implementasi:** Silakan terjemahkan daftar skenario di atas menjadi baris-baris kode `bun test` dengan pendekatan *clean code* terbaik menurutmu. Jangan ragu untuk menambahkan skenario *edge-cases* lain jika memang diperlukan.
