@@ -18,6 +18,11 @@ export const usersRoutes = new Elysia({ prefix: "/api" }).post(
       Email: t.String({ format: "email", minLength: 3, maxLength: 255 }),
       Password: t.String({ minLength: 6, maxLength: 255 }),
     }),
+    detail: {
+      tags: ['Users'],
+      summary: 'Daftar pengguna baru',
+      description: 'Endpoint untuk melakukan registrasi pengguna baru menggunakan Name, Email, dan Password.'
+    }
   }
 ).post(
   "/users/login",
@@ -35,6 +40,11 @@ export const usersRoutes = new Elysia({ prefix: "/api" }).post(
       Email: t.String(),
       Password: t.String(),
     }),
+    detail: {
+      tags: ['Users'],
+      summary: 'Login pengguna',
+      description: 'Endpoint untuk melakukan login dan mendapatkan token akses.'
+    }
   }
 ).get(
   "/users/current",
@@ -46,6 +56,13 @@ export const usersRoutes = new Elysia({ prefix: "/api" }).post(
       set.status = 401;
       return { error: "Unauthorized" };
     }
+  },
+  {
+    detail: {
+      tags: ['Users'],
+      summary: 'Dapatkan profil pengguna',
+      description: 'Endpoint untuk mengambil data profil pengguna yang sedang login berdasarkan token.'
+    }
   }
 ).delete(
   "/users/logout",
@@ -56,6 +73,13 @@ export const usersRoutes = new Elysia({ prefix: "/api" }).post(
     } catch (error: any) {
       set.status = 401;
       return { error: "Unauthorized" };
+    }
+  },
+  {
+    detail: {
+      tags: ['Users'],
+      summary: 'Logout pengguna',
+      description: 'Endpoint untuk menghapus sesi pengguna (logout).'
     }
   }
 );
